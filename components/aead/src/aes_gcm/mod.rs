@@ -267,7 +267,8 @@ impl<Ctx: Context> Aead for MpcAesGcm<Ctx> {
             .decrypt_private(explicit_nonce, ciphertext)
             .await?;
 
-        Ok(plaintext)
+        // Adapt here to call prove/verify from ZK stream cipher
+        todo!()
     }
 
     #[instrument(level = "debug", skip_all, err)]
@@ -299,7 +300,8 @@ impl<Ctx: Context> Aead for MpcAesGcm<Ctx> {
             .decrypt_blind(explicit_nonce, ciphertext)
             .await?;
 
-        Ok(())
+        // Adapt here to call prove/verify from ZK stream cipher
+        todo!()
     }
 
     #[instrument(level = "debug", skip_all, err)]
@@ -360,7 +362,8 @@ impl<Ctx: Context> Aead for MpcAesGcm<Ctx> {
             .prove_plaintext(explicit_nonce, ciphertext)
             .await?;
 
-        Ok(plaintext)
+        // Adapt here to call prove/verify from ZK stream cipher
+        todo!()
     }
 
     #[instrument(level = "debug", skip_all, err)]
@@ -372,7 +375,10 @@ impl<Ctx: Context> Aead for MpcAesGcm<Ctx> {
         self.aes_ctr
             .prove_plaintext(explicit_nonce, ciphertext)
             .map_err(AesGcmError::from)
-            .await
+            .await;
+
+        // Adapt here to call prove/verify from ZK stream cipher
+        todo!()
     }
 
     #[instrument(level = "debug", skip_all, err)]
@@ -404,7 +410,8 @@ impl<Ctx: Context> Aead for MpcAesGcm<Ctx> {
             .verify_plaintext(explicit_nonce, ciphertext)
             .await?;
 
-        Ok(())
+        // Adapt here to call prove/verify from ZK stream cipher
+        todo!()
     }
 
     #[instrument(level = "debug", skip_all, err)]
@@ -416,7 +423,10 @@ impl<Ctx: Context> Aead for MpcAesGcm<Ctx> {
         self.aes_ctr
             .verify_plaintext(explicit_nonce, ciphertext)
             .map_err(AesGcmError::from)
-            .await
+            .await?;
+
+        // Adapt here to call prove/verify from ZK stream cipher
+        todo!()
     }
 }
 
