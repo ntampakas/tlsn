@@ -16,7 +16,7 @@ use crate::{
 
 /// An MPC stream cipher.
 #[derive(Debug)]
-pub struct StreamCipherImpl<C, E>
+pub struct MpcCipher<C, E>
 where
     C: CtrCircuit,
     E: Thread + Execute + Decode + DecodePrivate + Send + Sync,
@@ -82,7 +82,7 @@ impl Transcript {
     }
 }
 
-impl<C, E> StreamCipherImpl<C, E>
+impl<C, E> MpcCipher<C, E>
 where
     C: CtrCircuit,
     E: Thread + Execute + Load + Prove + Verify + Decode + DecodePrivate + Send + Sync + 'static,
@@ -260,7 +260,7 @@ where
 }
 
 #[async_trait]
-impl<C, E> MpcStreamCipher<C> for StreamCipherImpl<C, E>
+impl<C, E> MpcStreamCipher<C> for MpcCipher<C, E>
 where
     C: CtrCircuit,
     E: Thread + Execute + Load + Prove + Verify + Decode + DecodePrivate + Send + Sync + 'static,

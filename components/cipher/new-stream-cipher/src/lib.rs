@@ -21,10 +21,10 @@ mod config;
 pub(crate) mod error;
 mod modes;
 
-pub use self::cipher::{Aes128Ctr, CtrCircuit};
+pub use cipher::{Aes128Ctr, CtrCircuit};
 pub use config::{StreamCipherConfig, StreamCipherConfigBuilder, StreamCipherConfigBuilderError};
 pub use error::StreamCipherError;
-pub use modes::mpc::StreamCipherImpl;
+pub use modes::mpc::MpcCipher;
 
 use async_trait::async_trait;
 use mpz_garble::value::ValueRef;
@@ -33,7 +33,7 @@ use mpz_garble::value::ValueRef;
 #[async_trait]
 pub trait MpcStreamCipher<Cipher>: Send + Sync
 where
-    Cipher: cipher::CtrCircuit,
+    Cipher: CtrCircuit,
 {
     /// Sets the key and iv for the stream cipher.
     fn set_key(&mut self, key: ValueRef, iv: ValueRef);
@@ -156,7 +156,7 @@ where
 #[async_trait]
 pub trait ZkStreamCipher<Cipher>: Send + Sync
 where
-    Cipher: cipher::CtrCircuit,
+    Cipher: CtrCircuit,
 {
     /// Sets the key and iv for the stream cipher.
     fn set_key(&mut self, key: ValueRef, iv: ValueRef);
@@ -228,10 +228,7 @@ mod tests {
         start_ctr: usize,
         key: [u8; 16],
         iv: [u8; 4],
-    ) -> (
-        StreamCipherImpl<C, MockLeader>,
-        StreamCipherImpl<C, MockFollower>,
-    ) {
+    ) -> (MpcCipher<C, MockLeader>, MpcCipher<C, MockFollower>) {
         let (leader_vm, follower_vm) = create_mock_deap_vm();
 
         let leader_key = leader_vm.new_public_input::<[u8; 16]>("key").unwrap();
@@ -258,10 +255,10 @@ mod tests {
             .build()
             .unwrap();
 
-        let mut leader = StreamCipherImpl::<C, _>::new(leader_config, leader_vm);
+        let mut leader = MpcCipher::<C, _>::new(leader_config, leader_vm);
         leader.set_key(leader_key, leader_iv);
 
-        let mut follower = StreamCipherImpl::<C, _>::new(follower_config, follower_vm);
+        let mut follower = MpcCipher::<C, _>::new(follower_config, follower_vm);
         follower.set_key(follower_key, follower_iv);
 
         (leader, follower)
