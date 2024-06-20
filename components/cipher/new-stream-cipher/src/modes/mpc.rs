@@ -247,16 +247,6 @@ where
         self.thread.decode_blind(&[value]).await?;
         Ok(())
     }
-
-    async fn prove(&mut self, value: ValueRef) -> Result<(), StreamCipherError> {
-        self.thread.prove(&[value]).await?;
-        Ok(())
-    }
-
-    async fn verify(&mut self, value: ValueRef, expected: Value) -> Result<(), StreamCipherError> {
-        self.thread.verify(&[value], &[expected]).await?;
-        Ok(())
-    }
 }
 
 #[async_trait]
@@ -507,21 +497,6 @@ where
             .map(|(c, k)| c ^ k)
             .collect::<Vec<_>>();
 
-        // Prove plaintext encrypts back to ciphertext.
-        let plaintext_ids = self.state.transcript.extend_plaintext(plaintext.len());
-        let ciphertext = self
-            .apply_keystream(
-                ExecutionMode::Prove,
-                InputText::Private {
-                    ids: plaintext_ids,
-                    text: plaintext.clone(),
-                },
-                keystream_ref,
-            )
-            .await?;
-
-        self.prove(ciphertext).await?;
-
         Ok(plaintext)
     }
 
@@ -541,95 +516,6 @@ where
             .await?;
 
         self.decode_blind(keystream_ref.clone()).await?;
-
-        // Verify the plaintext encrypts back to ciphertext.
-        let plaintext_ids = self.state.transcript.extend_plaintext(ciphertext.len());
-        let ciphertext_ref = self
-            .apply_keystream(
-                ExecutionMode::Verify,
-                InputText::Blind { ids: plaintext_ids },
-                keystream_ref,
-            )
-            .await?;
-
-        self.verify(ciphertext_ref, ciphertext.into()).await?;
-
-        Ok(())
-    }
-
-    #[instrument(level = "debug", skip_all, err)]
-    async fn prove_plaintext(
-        &mut self,
-        explicit_nonce: Vec<u8>,
-        ciphertext: Vec<u8>,
-    ) -> Result<Vec<u8>, StreamCipherError> {
-        let KeyAndIv { key, iv } = self
-            .state
-            .key_iv
-            .clone()
-            .ok_or_else(|| StreamCipherError::key_not_set())?;
-
-        let plaintext = C::apply_keystream(
-            &key,
-            &iv,
-            self.config.start_ctr,
-            &explicit_nonce,
-            &ciphertext,
-        )?;
-
-        // Prove plaintext encrypts back to ciphertext.
-        let keystream = self
-            .compute_keystream(
-                explicit_nonce,
-                self.config.start_ctr,
-                plaintext.len(),
-                ExecutionMode::Prove,
-            )
-            .await?;
-
-        let plaintext_ids = self.state.transcript.extend_plaintext(plaintext.len());
-        let ciphertext = self
-            .apply_keystream(
-                ExecutionMode::Prove,
-                InputText::Private {
-                    ids: plaintext_ids,
-                    text: plaintext.clone(),
-                },
-                keystream,
-            )
-            .await?;
-
-        self.prove(ciphertext).await?;
-
-        Ok(plaintext)
-    }
-
-    #[instrument(level = "debug", skip_all, err)]
-    async fn verify_plaintext(
-        &mut self,
-        explicit_nonce: Vec<u8>,
-        ciphertext: Vec<u8>,
-    ) -> Result<(), StreamCipherError> {
-        let keystream = self
-            .compute_keystream(
-                explicit_nonce,
-                self.config.start_ctr,
-                ciphertext.len(),
-                ExecutionMode::Verify,
-            )
-            .await?;
-
-        let plaintext_ids = self.state.transcript.extend_plaintext(ciphertext.len());
-        let ciphertext_ref = self
-            .apply_keystream(
-                ExecutionMode::Verify,
-                InputText::Blind { ids: plaintext_ids },
-                keystream,
-            )
-            .await?;
-
-        self.verify(ciphertext_ref, ciphertext.into()).await?;
-
         Ok(())
     }
 
