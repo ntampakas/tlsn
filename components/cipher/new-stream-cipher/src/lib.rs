@@ -17,23 +17,21 @@
 #![deny(unsafe_code)]
 
 mod cipher;
-mod circuit;
 mod config;
 pub(crate) mod error;
-pub(crate) mod keystream;
-mod stream_cipher;
+mod modes;
 
 pub use self::cipher::{Aes128Ctr, CtrCircuit};
 pub use config::{StreamCipherConfig, StreamCipherConfigBuilder, StreamCipherConfigBuilderError};
 pub use error::StreamCipherError;
-pub use stream_cipher::MpcStreamCipher;
+pub use modes::mpc::StreamCipherImpl;
 
 use async_trait::async_trait;
 use mpz_garble::value::ValueRef;
 
 /// A trait for MPC stream ciphers.
 #[async_trait]
-pub trait StreamCipher<Cipher>: Send + Sync
+pub trait MpcStreamCipher<Cipher>: Send + Sync
 where
     Cipher: cipher::CtrCircuit,
 {
@@ -141,6 +139,46 @@ where
         ciphertext: Vec<u8>,
     ) -> Result<(), StreamCipherError>;
 
+    /// Returns an additive share of the keystream block for the given explicit nonce and counter.
+    ///
+    /// # Arguments
+    ///
+    /// * `explicit_nonce` - The explicit nonce to use for the keystream block.
+    /// * `ctr` - The counter to use for the keystream block.
+    async fn share_keystream_block(
+        &mut self,
+        explicit_nonce: Vec<u8>,
+        ctr: usize,
+    ) -> Result<Vec<u8>, StreamCipherError>;
+}
+
+/// A trait for ZK stream ciphers.
+#[async_trait]
+pub trait ZkStreamCipher<Cipher>: Send + Sync
+where
+    Cipher: cipher::CtrCircuit,
+{
+    /// Sets the key and iv for the stream cipher.
+    fn set_key(&mut self, key: ValueRef, iv: ValueRef);
+
+    /// Preprocesses the keystream for the given number of bytes.
+    async fn preprocess(&mut self, len: usize) -> Result<(), StreamCipherError>;
+
+    /// Sets the transcript id
+    ///
+    /// The stream cipher assigns unique identifiers to each byte of plaintext
+    /// during encryption and decryption.
+    ///
+    /// For example, if the transcript id is set to `foo`, then the first byte will
+    /// be assigned the id `foo/0`, the second byte `foo/1`, and so on.
+    ///
+    /// Each transcript id has an independent counter.
+    ///
+    /// # Note
+    ///
+    /// The state of a transcript counter is preserved between calls to `set_transcript_id`.
+    fn set_transcript_id(&mut self, id: &str);
+
     /// Locally decrypts the provided ciphertext and then proves in ZK to the other party(s) that the
     /// plaintext is correct.
     ///
@@ -170,18 +208,6 @@ where
         explicit_nonce: Vec<u8>,
         ciphertext: Vec<u8>,
     ) -> Result<(), StreamCipherError>;
-
-    /// Returns an additive share of the keystream block for the given explicit nonce and counter.
-    ///
-    /// # Arguments
-    ///
-    /// * `explicit_nonce` - The explicit nonce to use for the keystream block.
-    /// * `ctr` - The counter to use for the keystream block.
-    async fn share_keystream_block(
-        &mut self,
-        explicit_nonce: Vec<u8>,
-        ctr: usize,
-    ) -> Result<Vec<u8>, StreamCipherError>;
 }
 
 #[cfg(test)]
@@ -203,8 +229,8 @@ mod tests {
         key: [u8; 16],
         iv: [u8; 4],
     ) -> (
-        MpcStreamCipher<C, MockLeader>,
-        MpcStreamCipher<C, MockFollower>,
+        StreamCipherImpl<C, MockLeader>,
+        StreamCipherImpl<C, MockFollower>,
     ) {
         let (leader_vm, follower_vm) = create_mock_deap_vm();
 
@@ -232,10 +258,10 @@ mod tests {
             .build()
             .unwrap();
 
-        let mut leader = MpcStreamCipher::<C, _>::new(leader_config, leader_vm);
+        let mut leader = StreamCipherImpl::<C, _>::new(leader_config, leader_vm);
         leader.set_key(leader_key, leader_iv);
 
-        let mut follower = MpcStreamCipher::<C, _>::new(follower_config, follower_vm);
+        let mut follower = StreamCipherImpl::<C, _>::new(follower_config, follower_vm);
         follower.set_key(follower_key, follower_iv);
 
         (leader, follower)

@@ -1,11 +1,12 @@
-use std::sync::Arc;
-
+use crate::StreamCipherError;
+use circuit::AES_CTR;
 use mpz_circuits::{
     types::{StaticValueType, Value},
     Circuit,
 };
+use std::sync::Arc;
 
-use crate::{circuit::AES_CTR, StreamCipherError};
+pub(crate) mod circuit;
 
 /// A counter-mode block cipher circuit.
 pub trait CtrCircuit: Default + Clone + Send + Sync + 'static {

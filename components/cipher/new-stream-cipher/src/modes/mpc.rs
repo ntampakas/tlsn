@@ -7,16 +7,16 @@ use mpz_garble::{value::ValueRef, Decode, DecodePrivate, Execute, Load, Prove, T
 use utils::id::NestedId;
 
 use crate::{
+    cipher::circuit::build_array_xor,
     cipher::CtrCircuit,
-    circuit::build_array_xor,
     config::{is_valid_mode, ExecutionMode, InputText, StreamCipherConfig},
-    keystream::KeyStream,
-    StreamCipher, StreamCipherError,
+    modes::keystream::KeyStream,
+    MpcStreamCipher, StreamCipherError,
 };
 
 /// An MPC stream cipher.
 #[derive(Debug)]
-pub struct MpcStreamCipher<C, E>
+pub struct StreamCipherImpl<C, E>
 where
     C: CtrCircuit,
     E: Thread + Execute + Decode + DecodePrivate + Send + Sync,
@@ -82,7 +82,7 @@ impl Transcript {
     }
 }
 
-impl<C, E> MpcStreamCipher<C, E>
+impl<C, E> StreamCipherImpl<C, E>
 where
     C: CtrCircuit,
     E: Thread + Execute + Load + Prove + Verify + Decode + DecodePrivate + Send + Sync + 'static,
@@ -260,7 +260,7 @@ where
 }
 
 #[async_trait]
-impl<C, E> StreamCipher<C> for MpcStreamCipher<C, E>
+impl<C, E> MpcStreamCipher<C> for StreamCipherImpl<C, E>
 where
     C: CtrCircuit,
     E: Thread + Execute + Load + Prove + Verify + Decode + DecodePrivate + Send + Sync + 'static,
